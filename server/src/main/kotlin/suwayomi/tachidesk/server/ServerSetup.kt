@@ -49,6 +49,7 @@ class ApplicationDirs(
     val automatedBackupRoot = serverConfig.backupPath.ifBlank { "$dataRoot/backups" }
 
     val tempMangaCacheRoot = "$tempRoot/manga-cache"
+    val tempLiteCacheRoot = "$tempRoot/lite-cache"
 }
 
 val serverConfig: ServerConfig by lazy { GlobalConfigManager.module() }

@@ -25,6 +25,7 @@ import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.global.GlobalAPI
 import suwayomi.tachidesk.graphql.GraphQL
+import suwayomi.tachidesk.lite.LiteAPI
 import suwayomi.tachidesk.manga.MangaAPI
 import suwayomi.tachidesk.server.util.Browser
 import suwayomi.tachidesk.server.util.setupWebInterface
@@ -110,6 +111,9 @@ object JavalinSetup {
                 path("v1/") {
                     GlobalAPI.defineEndpoints()
                     MangaAPI.defineEndpoints()
+                    path("lite") {
+                        LiteAPI.defineEndpoints()
+                    }
                 }
                 GraphQL.defineEndpoints()
             }

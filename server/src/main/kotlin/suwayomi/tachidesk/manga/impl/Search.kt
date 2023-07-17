@@ -36,7 +36,7 @@ object Search {
 
     private val filterListCache = mutableMapOf<Long, FilterList>()
 
-    private fun getFilterListOf(source: CatalogueSource, reset: Boolean = false): FilterList {
+    fun getFilterListOf(source: CatalogueSource, reset: Boolean = false): FilterList {
         if (reset || !filterListCache.containsKey(source.id)) {
             filterListCache[source.id] = source.getFilterList()
         }
