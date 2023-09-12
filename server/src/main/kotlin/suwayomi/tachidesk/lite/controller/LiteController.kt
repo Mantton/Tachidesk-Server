@@ -7,10 +7,7 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.lite.impl.Lite
-import suwayomi.tachidesk.lite.model.dataclass.LiteChapterDataClass
-import suwayomi.tachidesk.lite.model.dataclass.LiteChapterInfoDataClass
-import suwayomi.tachidesk.lite.model.dataclass.LiteMangaDataClass
-import suwayomi.tachidesk.lite.model.dataclass.LiteSourceDataClass
+import suwayomi.tachidesk.lite.model.dataclass.*
 import suwayomi.tachidesk.manga.impl.Search
 import suwayomi.tachidesk.manga.model.dataclass.PagedMangaListDataClass
 import suwayomi.tachidesk.server.JavalinSetup
@@ -177,8 +174,6 @@ object LiteController {
     private val json by DI.global.instance<Json>()
     val search = handler(
         pathParam<Long>("sourceId"),
-        queryParam("query", ""),
-        queryParam("page", 1),
         documentWith = {
             withOperation {
                 summary("[Lite] Search Source")
@@ -187,16 +182,38 @@ object LiteController {
             body<Search.FilterChange>()
             body<Array<Search.FilterChange>>()
         },
-        behaviorOf = { ctx, sourceId, query, page ->
-            val filterChange = try {
-                json.decodeFromString<List<Search.FilterChange>>(ctx.body())
+        behaviorOf = { ctx, sourceId ->
+            val request = try {
+                json.decodeFromString<SearchRequestBody>(ctx.body())
             } catch (e: Exception) {
-                listOf(json.decodeFromString<Search.FilterChange>(ctx.body()))
+                SearchRequestBody(changes = listOf(), query = "", page = 1)
             }
-            ctx.future(JavalinSetup.future { Lite.search(sourceId, query, page, filterChange) })
+            ctx.future(JavalinSetup.future { Lite.search(sourceId, request) })
         },
         withResults = {
             json<PagedMangaListDataClass>(HttpCode.OK)
+        }
+    )
+
+    /** popular mangas from source with id `sourceId` */
+    val popular = handler(
+        pathParam<Long>("sourceId"),
+        pathParam<Int>("pageNum"),
+        documentWith = {
+            withOperation {
+                summary("Source popular manga")
+                description("Popular mangas from source with id `sourceId`")
+            }
+        },
+        behaviorOf = { ctx, sourceId, pageNum ->
+            ctx.future(
+                JavalinSetup.future {
+                    Lite.popular(sourceId, pageNum)
+                }
+            )
+        },
+        withResults = {
+            json<LitePagedResultDataClass>(HttpCode.OK)
         }
     )
 }

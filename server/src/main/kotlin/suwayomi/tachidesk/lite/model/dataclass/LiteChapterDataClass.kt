@@ -6,5 +6,6 @@ data class LiteChapterDataClass(
     val title: String,
     val dateUploaded: Long,
     val chapterNumber: Float,
+    val lang: String,
     val scanlator: String?
 )

@@ -1,6 +1,5 @@
 package suwayomi.tachidesk.lite.impl
 
-import java.net.URLDecoder
 import java.net.URLEncoder
 
 object Coder {

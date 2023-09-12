@@ -11,11 +11,12 @@ object LiteAPI {
         // Searching
         get("{sourceId}/filters", LiteController.getFilters)
         post("{sourceId}/search", LiteController.search)
+        get("{sourceId}/popular/{pageNum}", LiteController.popular)
 
         // Core
         get("/manga/{sourceId}/{mangaUrl}", LiteController.getManga)
-        get("/manga/{sourceId}/manga/{mangaUrl}/chapters", LiteController.getMangaChapters)
-        get("/manga/{sourceId}/manga/{mangaUrl}/chapters/{chapterUrl}/pages", LiteController.getPages)
+        get("/manga/{sourceId}/{mangaUrl}/chapters", LiteController.getMangaChapters)
+        get("/manga/{sourceId}/{mangaUrl}/chapters/{chapterUrl}/pages", LiteController.getPages)
 
         // Images
         get("/source/{sourceId}/page", LiteController.getPage)

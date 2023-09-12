@@ -13,7 +13,6 @@ import org.kodein.di.DI
 import org.kodein.di.conf.global
 import org.kodein.di.instance
 import suwayomi.tachidesk.lite.model.dataclass.*
-import suwayomi.tachidesk.manga.impl.Search.FilterChange
 import suwayomi.tachidesk.manga.impl.Search.buildFilterList
 import suwayomi.tachidesk.manga.impl.Search.getFilterListOf
 import suwayomi.tachidesk.manga.impl.extension.Extension.getExtensionIconUrl
@@ -50,26 +49,35 @@ object Lite {
     }
 
     suspend fun getManga(sourceId: Long, mangaUrl: String): LiteMangaDataClass? {
-        val source = getCatalogueSourceOrNull(sourceId) ?: return null
+        val source = getCatalogueSourceOrNull(sourceId) as? HttpSource ?: return null
         val sManga = SManga.create().apply {
             url = mangaUrl
             title = ""
         }
-        val manga = source.fetchMangaDetails(sManga).awaitSingle()
-        var thumbnail = manga.thumbnail_url
 
-        if (thumbnail != null) {
+        val manga = source.fetchMangaDetails(sManga).awaitSingle()
+
+        var thumbnail = manga.thumbnail_url
+        if (thumbnail != null && source.client.interceptors.isNotEmpty()) {
             thumbnail = "/api/v1/lite/thumbnail/$sourceId/${Coder.encode(thumbnail)}"
         }
 
+        sManga.copyFrom(manga)
+        sManga.title = manga.title
+
+        val webUrl = (source as? HttpSource)?.getMangaUrl(sManga)
+
         return LiteMangaDataClass(
-            url = mangaUrl,
-            title = manga.title,
-            artist = manga.artist,
-            author = manga.author,
-            description = manga.description,
-            genres = manga.genre?.split(", "),
-            thumbnail = thumbnail
+            url = Coder.encode(sManga.url),
+            sourceId = "$sourceId",
+            title = sManga.title,
+            artist = sManga.artist,
+            author = sManga.author,
+            description = sManga.description,
+            genres = sManga.genre?.split(", "),
+            thumbnail = thumbnail ?: "",
+            status = sManga.status,
+            webUrl = webUrl
         )
     }
 
@@ -88,10 +96,11 @@ object Lite {
 
             LiteChapterDataClass(
                 index = idx,
-                url = it.url,
+                url = Coder.encode(it.url),
                 title = it.name,
                 dateUploaded = it.date_upload,
                 chapterNumber = it.chapter_number,
+                lang = source.lang,
                 scanlator = it.scanlator
             )
         }
@@ -133,37 +142,72 @@ object Lite {
         val source = getCatalogueSourceOrStub(sourceId)
 
         if (source is StubSource) throw IllegalArgumentException("Unknown source")
-
         source as HttpSource
 
-        val fileName = Cache.get(thumbnailUrl) ?: Cache.set(thumbnailUrl, UUID.randomUUID().toString())
-        return ImageResponse.getCachedImageResponse(applicationDirs.tempLiteCacheRoot, fileName) {
-            source.client.newCall(
-                GET(thumbnailUrl, source.headers)
-            ).await()
-        }
+        val response = source.client.newCall(
+            GET(thumbnailUrl, source.headers)
+        ).await()
+        val stream = response.body.byteStream()
+        val contentType = response.headers["Content-Type"] ?: "image/jpeg"
+
+        return Pair(stream, contentType)
     }
 
-    suspend fun search(sourceId: Long, query: String, page: Int, filters: List<FilterChange>): LitePagedResultDataClass {
-        val source = getCatalogueSourceOrStub(sourceId)
-        val filterList = if (filters.isNotEmpty()) buildFilterList(sourceId, filters) else getFilterListOf(source)
+    suspend fun search(sourceId: Long, request: SearchRequestBody): LitePagedResultDataClass {
+        val source = getCatalogueSourceOrStub(sourceId) as HttpSource
+        val filterList = if (request.changes.isNotEmpty()) buildFilterList(sourceId, request.changes) else getFilterListOf(source)
 
         val response = source
-            .fetchSearchManga(page, query, filterList)
+            .fetchSearchManga(request.page, request.query, filterList)
             .awaitSingle()
+        val useLiteThumbnail = source.client.networkInterceptors.isNotEmpty()
         val results = response
             .mangas
             .map {
                 LiteMangaDataClass(
-                    url = it.url,
+                    url = Coder.encode(it.url),
+                    sourceId = "$sourceId",
                     title = it.title,
                     artist = null,
                     author = null,
                     description = null,
                     genres = null,
                     thumbnail = it.thumbnail_url?.let { thumb ->
-                        "/api/v1/lite/thumbnail/$sourceId/${Coder.encode(thumb)}"
-                    }
+                        if (useLiteThumbnail) "/api/v1/lite/thumbnail/$sourceId/${Coder.encode(thumb)}" else thumb
+                    },
+                    status = null,
+                    webUrl = null
+                )
+            }
+
+        return LitePagedResultDataClass(mangaList = results, hasNextPage = response.hasNextPage)
+    }
+
+    suspend fun popular(sourceId: Long, page: Int): LitePagedResultDataClass {
+        require(page > 0) {
+            "page = $page is not in valid range"
+        }
+        val source = getCatalogueSourceOrStub(sourceId) as HttpSource
+
+        val useLiteThumbnail = source.client.networkInterceptors.isNotEmpty()
+
+        val response = source.fetchPopularManga(page).awaitSingle()
+        val results = response
+            .mangas
+            .map {
+                LiteMangaDataClass(
+                    url = Coder.encode(it.url),
+                    sourceId = "$sourceId",
+                    title = it.title,
+                    artist = null,
+                    author = null,
+                    description = null,
+                    genres = null,
+                    thumbnail = it.thumbnail_url?.let { thumb ->
+                        if (useLiteThumbnail) "/api/v1/lite/thumbnail/$sourceId/${Coder.encode(thumb)}" else thumb
+                    },
+                    status = null,
+                    webUrl = null
                 )
             }
 

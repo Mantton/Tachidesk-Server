@@ -105,7 +105,6 @@ object ProtoBackupExport : ProtoBackupBase() {
 
             backupFile.outputStream().use { output -> input.copyTo(output) }
         }
-
     }
 
     private fun cleanupAutomatedBackups() {
