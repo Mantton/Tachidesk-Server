@@ -6,6 +6,8 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.chapter.ChapterRecognition
+import kotlinx.serialization.json.Json
+import okio.ByteString.Companion.encode
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -70,11 +72,11 @@ object Lite {
         return LiteMangaDataClass(
             url = Coder.encode(sManga.url),
             sourceId = "$sourceId",
-            title = sManga.title,
-            artist = sManga.artist,
-            author = sManga.author,
-            description = sManga.description,
-            genres = sManga.genre?.split(", "),
+            title = sManga.title.trim(),
+            artist = sManga.artist?.trim(),
+            author = sManga.author?.trim(),
+            description = sManga.description?.trim(),
+            genres = sManga.genre?.split(", ")?.map { it.trim() },
             thumbnail = thumbnail ?: "",
             status = sManga.status,
             webUrl = webUrl
